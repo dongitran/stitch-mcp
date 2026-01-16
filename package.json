@@ -1,7 +1,7 @@
 {
   "name": "@_davideast/stitch-mcp",
-  "version": "0.1.0",
-  "description": "Stitch MCP OAuth setup assistant - automates Google Cloud authentication for Stitch API",
+  "version": "0.0.1",
+  "description": "Stitch MCP CLI helper. Automates Google Cloud authentication. Generates MCP config for your client. Sets up a proxy server.",
   "type": "module",
   "bin": {
     "stitch-mcp": "./bin/stitch-mcp.js"
@@ -23,18 +23,12 @@
     "build": "bun build src/index.ts --outdir=dist --target=bun --format=esm",
     "dev": "bun run src/cli.ts",
     "test": "bun test --preload ./tests/setup.ts",
-    "prepublishOnly": "bun run build"
+    "prepublishOnly": "bun run build",
+    "release": "np"
   },
-  "keywords": [
-    "stitch",
-    "mcp",
-    "oauth",
-    "gcloud",
-    "authentication",
-    "cli"
-  ],
+  "keywords": [],
   "author": "David East",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "@inquirer/prompts": "^7.2.0",
     "@modelcontextprotocol/sdk": "^1.25.2",
@@ -49,6 +43,7 @@
     "@types/bun": "latest",
     "@types/express": "^5.0.6",
     "@types/node": "^25.0.9",
+    "np": "^10.2.0",
     "typescript": "^5.7.3"
   },
   "engines": {

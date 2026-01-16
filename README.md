@@ -2,6 +2,9 @@
 
 > Stitch MCP OAuth setup assistant - automates Google Cloud authentication for Stitch API
 
+> [!WARNING]
+> **Experimental Project** - This is an independent, experimental tool. It is NOT affiliated with, endorsed by, or sponsored by Google or the Stitch API team. Provided AS-IS with no warranties. See [LICENSE](./LICENSE) for full disclaimer.
+
 ## Installation
 
 ```bash
@@ -148,4 +151,17 @@ bun run build
 
 ## License
 
-MIT © David East
+Apache 2.0 © David East
+
+---
+
+### Disclaimer
+
+This project is an **independent, experimental tool**. It is:
+- **NOT** affiliated with, endorsed by, or sponsored by Google LLC, Alphabet Inc., or the Stitch API team
+- Provided **AS-IS** with **NO WARRANTIES** of any kind
+- **NOT** guaranteed to be maintained, secure, or compatible with future API versions
+
+"Stitch" and "Google Cloud" are trademarks of Google LLC.
+
+**USE AT YOUR OWN RISK.**
