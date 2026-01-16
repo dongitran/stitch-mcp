@@ -12,14 +12,12 @@ export type ConfigureIAMInput = z.infer<typeof ConfigureIAMInputSchema>;
 
 export const EnableAPIInputSchema = z.object({
   projectId: z.string().min(1),
-  staging: z.boolean().default(false),
 });
 export type EnableAPIInput = z.infer<typeof EnableAPIInputSchema>;
 
 export const TestConnectionInputSchema = z.object({
   projectId: z.string().min(1),
   accessToken: z.string().min(1),
-  staging: z.boolean().default(false),
 });
 export type TestConnectionInput = z.infer<typeof TestConnectionInputSchema>;
 

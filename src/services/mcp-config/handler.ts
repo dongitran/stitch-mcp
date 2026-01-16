@@ -4,9 +4,7 @@ import { theme } from '../../ui/theme.js';
 export class McpConfigHandler implements McpConfigService {
   async generateConfig(input: GenerateConfigInput): Promise<McpConfigResult> {
     try {
-      const url = input.staging
-        ? 'https://staging-stitch.sandbox.googleapis.com/mcp'
-        : 'https://stitch.googleapis.com/mcp';
+      const url = process.env.STITCH_HOST || 'https://stitch.googleapis.com/mcp';
 
       const config = {
         mcpServers: {

@@ -6,7 +6,6 @@ import { z } from 'zod';
 
 export const InitInputSchema = z.object({
   local: z.boolean().default(false),
-  staging: z.boolean().default(false),
 });
 export type InitInput = z.infer<typeof InitInputSchema>;
 

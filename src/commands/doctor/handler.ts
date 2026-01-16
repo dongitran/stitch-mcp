@@ -131,7 +131,6 @@ export class DoctorHandler implements DoctorCommand {
             const testResult = await stitchService.testConnection({
               projectId: currentProject.projectId,
               accessToken,
-              staging: input.staging,
             });
 
             if (testResult.success) {

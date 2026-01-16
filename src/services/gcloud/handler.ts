@@ -361,8 +361,29 @@ export class GcloudHandler implements GcloudService {
         return result.stdout.trim();
       }
 
+      console.error('[Gcloud] Token fetch failed:', result.stderr || result.error);
       return null;
-    } catch {
+    } catch (e) {
+      console.error('[Gcloud] Token fetch exception:', e);
+      return null;
+    }
+  }
+
+  async getProjectId(): Promise<string | null> {
+    try {
+      const gcloudCmd = this.getGcloudCommand();
+      const result = await execCommand([gcloudCmd, 'config', 'get-value', 'project'], {
+        env: this.getEnvironment(),
+      });
+
+      if (result.success) {
+        return result.stdout.trim();
+      }
+
+      console.error('[Gcloud] Project ID fetch failed:', result.stderr || result.error);
+      return null;
+    } catch (e) {
+      console.error('[Gcloud] Project ID fetch exception:', e);
       return null;
     }
   }
@@ -531,6 +552,16 @@ export class GcloudHandler implements GcloudService {
   private getGcloudCommand(): string {
     if (this.gcloudPath) {
       return this.gcloudPath;
+    }
+
+    // Check if local SDK exists
+    const localSdkPath = getGcloudSdkPath();
+    const localBinaryPath = joinPath(localSdkPath, 'bin', this.platform.gcloudBinaryName);
+
+    if (fs.existsSync(localBinaryPath)) {
+      this.gcloudPath = localBinaryPath;
+      this.setupEnvironment();
+      return localBinaryPath;
     }
 
     // Fallback to command in PATH

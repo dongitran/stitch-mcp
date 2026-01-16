@@ -10,7 +10,6 @@ export const GenerateConfigInputSchema = z.object({
   client: z.enum(['antigravity', 'vscode', 'cursor', 'claude-code', 'gemini-cli']),
   projectId: z.string().min(1),
   accessToken: z.string().min(1),
-  staging: z.boolean().default(false),
 });
 export type GenerateConfigInput = z.infer<typeof GenerateConfigInputSchema>;
 

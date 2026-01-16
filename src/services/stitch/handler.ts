@@ -131,9 +131,7 @@ export class StitchHandler implements StitchService {
 
   async testConnection(input: TestConnectionInput): Promise<ConnectionTestResult> {
     try {
-      const url = input.staging
-        ? 'https://staging-stitch.sandbox.googleapis.com/mcp'
-        : 'https://stitch.googleapis.com/mcp';
+      const url = process.env.STITCH_HOST || 'https://stitch.googleapis.com/mcp';
 
       const payload = {
         method: 'tools/call',

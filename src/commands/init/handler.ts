@@ -191,7 +191,6 @@ export class InitHandler implements InitCommand {
 
       const apiResult = await stitchService.enableAPI({
         projectId: projectResult.data.projectId,
-        staging: input.staging,
       });
 
       if (apiResult.success) {
@@ -233,7 +232,6 @@ export class InitHandler implements InitCommand {
         client: mcpClient,
         projectId: projectResult.data.projectId,
         accessToken,
-        staging: input.staging,
       });
 
       if (!configResult.success) {
@@ -263,7 +261,6 @@ export class InitHandler implements InitCommand {
       const testResult = await stitchService.testConnection({
         projectId: projectResult.data.projectId,
         accessToken,
-        staging: input.staging,
       });
 
       if (!testResult.success) {

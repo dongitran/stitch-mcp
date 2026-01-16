@@ -5,7 +5,6 @@ import { z } from 'zod';
 // ============================================================================
 
 export const DoctorInputSchema = z.object({
-  staging: z.boolean().default(false),
   verbose: z.boolean().default(false),
 });
 export type DoctorInput = z.infer<typeof DoctorInputSchema>;
