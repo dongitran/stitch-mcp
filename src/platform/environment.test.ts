@@ -75,7 +75,10 @@ describe('detectEnvironment', () => {
     const env = detectEnvironment();
 
     expect(env.needsNoBrowser).toBe(true);
-    expect(env.reason).toContain('Cloud Shell');
+    // Note: If running in WSL, WSL detection takes priority for the reason string
+    if (!env.isWSL) {
+      expect(env.reason).toContain('Cloud Shell');
+    }
   });
 
   test('should set needsNoBrowser for SSH without display', () => {
