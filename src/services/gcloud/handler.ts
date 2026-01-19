@@ -634,8 +634,16 @@ export class GcloudHandler implements GcloudService {
   }
 
   async hasADC(): Promise<boolean> {
-    const configPath = getGcloudConfigPath();
-    const adcPath = joinPath(configPath, 'application_default_credentials.json');
-    return fs.existsSync(adcPath);
+    // Check custom stitch config path
+    const stitchConfigPath = getGcloudConfigPath();
+    const stitchAdcPath = joinPath(stitchConfigPath, 'application_default_credentials.json');
+    if (fs.existsSync(stitchAdcPath)) {
+      return true;
+    }
+
+    // Also check default gcloud config path
+    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+    const defaultAdcPath = joinPath(homeDir, '.config', 'gcloud', 'application_default_credentials.json');
+    return fs.existsSync(defaultAdcPath);
   }
 }

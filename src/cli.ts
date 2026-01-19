@@ -15,7 +15,8 @@ program
   .command('init')
   .description('Initialize authentication and MCP configuration')
   .option('--local', 'Install gcloud locally to project directory instead of user home', false)
-  .option('-y, --defaults', 'Use default values for prompts', false)
+  .option('-y, --yes', 'Auto-approve verification commands', false)
+  .option('--defaults', 'Use default values for prompts', false)
   .option('-c, --client <client>', 'MCP client to configure')
   .option('-t, --transport <transport>', 'Transport type (http or stdio)')
   .action(async (options) => {
@@ -24,6 +25,7 @@ program
       const result = await handler.execute({
         local: options.local,
         defaults: options.defaults,
+        autoVerify: options.yes,
         client: options.client,
         transport: options.transport,
       });

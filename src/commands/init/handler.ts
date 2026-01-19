@@ -10,6 +10,9 @@ import { type McpConfigService } from '../../services/mcp-config/spec.js';
 import { createSpinner } from '../../ui/spinner.js';
 import { promptMcpClient, promptConfirm, promptTransportType, type McpClient } from '../../ui/wizard.js';
 import { theme, icons } from '../../ui/theme.js';
+import { createChecklist, verifyAllSteps, type ChecklistStep } from '../../ui/checklist.js';
+import { getGcloudSdkPath } from '../../platform/detector.js';
+import { detectEnvironment } from '../../platform/environment.js';
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -76,67 +79,123 @@ export class InitHandler implements InitCommand {
       );
       console.log(theme.gray(`  Location: ${gcloudResult.data.path}\n`));
 
-      // Step 3: User Authentication
-      console.log(theme.gray('Step 3: Authenticating with Google Cloud\n'));
-      let activeAccount = await this.gcloudService.getActiveAccount();
-      if (activeAccount) {
-        const continueWithActive = input.defaults ? true : await promptConfirm(
-          `You are already logged in as ${activeAccount}. Continue?`,
-          true
-        );
-        if (!continueWithActive) {
-          activeAccount = null; // Force re-authentication
-        }
+      // Determine gcloud path for checklist commands
+      const gcloudPath = gcloudResult.data.path;
+      const isBundled = gcloudResult.data.location === 'bundled';
+      const gcloudBinDir = path.dirname(gcloudPath);
+
+      // Build auth checklist steps
+      const authSteps: ChecklistStep[] = [];
+
+      // If bundled, add PATH setup step
+      if (isBundled) {
+        authSteps.push({
+          id: 'path-setup',
+          title: 'Configure gcloud PATH (this terminal session)',
+          command: `export PATH="${gcloudBinDir}:$PATH"`,
+          // No verification - verified indirectly when gcloud commands work
+        });
       }
 
-      const authResult = await this.gcloudService.authenticate({
-        skipIfActive: Boolean(activeAccount),
+      // Detect environment for auth guidance
+      const env = detectEnvironment();
+
+      // For WSL/problematic environments, show guidance rather than --no-browser
+      // (--no-browser has its own complexity with --remote-bootstrap)
+      if (env.needsNoBrowser && env.reason) {
+        console.log(theme.yellow(`  ⚠ ${env.reason}`));
+        console.log(theme.gray('  If browser auth fails, copy the URL from terminal and open manually.\n'));
+      }
+
+      // User auth step
+      authSteps.push({
+        id: 'user-auth',
+        title: 'Authenticate with Google Cloud',
+        command: 'gcloud auth login',
+        verifyCommand: [gcloudPath, 'auth', 'list', '--filter=status:ACTIVE', '--format=value(account)'],
       });
 
-      if (!authResult.success) {
-        return {
-          success: false,
-          error: {
-            code: 'AUTH_FAILED',
-            message: 'User authentication failed',
-            suggestion: authResult.error.suggestion,
-            recoverable: authResult.error.recoverable,
-          },
-        };
-      }
+      // ADC step
+      authSteps.push({
+        id: 'adc',
+        title: 'Authorize Application Default Credentials',
+        command: 'gcloud auth application-default login',
+        verifyFn: async () => {
+          const hasADC = await this.gcloudService.hasADC();
+          return {
+            success: hasADC,
+            message: hasADC ? 'ADC configured' : 'ADC not found',
+          };
+        },
+      });
 
-      console.log(theme.green(`${icons.success} User authenticated: ${authResult.data.account}\n`));
-      // Step 4: Application Default Credentials
-      console.log(theme.gray('Step 4: Authorizing application credentials\n'));
-      let hasADC = await this.gcloudService.hasADC();
-      if (hasADC) {
-        const useExistingADC = input.defaults ? true : await promptConfirm(
-          'Application Default Credentials (ADC) already exist. Use them?',
-          true
-        );
-        if (!useExistingADC) {
-          hasADC = false; // Force re-authentication
+      // Check current state upfront
+      console.log(theme.gray('Step 3: Setup Authentication\n'));
+
+      let stepsToRun = authSteps;
+      const checkState = input.autoVerify ||
+        await promptConfirm('Check your current setup status?', true);
+
+      if (checkState) {
+        const spinner2 = createSpinner();
+        spinner2.start('Checking current state...');
+        const verified = await verifyAllSteps(authSteps);
+        spinner2.stop();
+
+        // Filter to only steps that need to be run
+        const completedSteps: string[] = [];
+        for (const step of authSteps) {
+          const result = verified.get(step.id);
+          if (result?.success) {
+            console.log(theme.green(`  ${icons.success} ${step.title}: ${result.message || 'Complete'} (skipping)`));
+            completedSteps.push(step.id);
+          }
         }
-      } else {
-        console.log(
-          theme.gray('  This is a separate auth process required for API access...\n')
-        );
-      }
-      const adcResult = await this.gcloudService.authenticateADC({ skipIfActive: hasADC });
 
-      if (!adcResult.success) {
+        stepsToRun = authSteps.filter(s => !completedSteps.includes(s.id));
+
+        if (stepsToRun.length === 0) {
+          console.log(theme.green(`\n  ${icons.success} All authentication steps already complete\n`));
+        } else {
+          console.log('');
+        }
+      }
+
+      // Run remaining auth steps via checklist
+      if (stepsToRun.length > 0) {
+        const checklist = createChecklist();
+        const checklistResult = await checklist.run(stepsToRun, {
+          autoVerify: input.autoVerify,
+        });
+
+        if (!checklistResult.success) {
+          return {
+            success: false,
+            error: {
+              code: 'AUTH_FAILED',
+              message: checklistResult.error || 'Authentication setup failed',
+              suggestion: 'Complete the authentication steps and try again',
+              recoverable: true,
+            },
+          };
+        }
+      }
+
+      // Get the authenticated account for later steps
+      const authAccount = await this.gcloudService.getActiveAccount();
+      if (!authAccount) {
         return {
           success: false,
           error: {
             code: 'AUTH_FAILED',
-            message: 'Application credential authorization failed',
-            suggestion: adcResult.error.suggestion,
-            recoverable: adcResult.error.recoverable,
+            message: 'No authenticated account found after setup',
+            suggestion: 'Run gcloud auth login and try again',
+            recoverable: true,
           },
         };
       }
 
-      console.log(theme.green(`${icons.success} Application credentials ready\n`));
+      console.log(theme.green(`${icons.success} Authenticated as: ${authAccount}\n`));
 
       // Step 5: Transport Selection
       console.log(theme.gray('Step 5: Choose connection method\n'));
@@ -217,7 +276,7 @@ export class InitHandler implements InitCommand {
       iamCheckSpinner.start('Checking IAM permissions...');
       const hasIAMRole = await this.stitchService.checkIAMRole({
         projectId: projectResult.data.projectId,
-        userEmail: authResult.data.account,
+        userEmail: authAccount,
       });
       iamCheckSpinner.stop();
 
@@ -233,7 +292,7 @@ export class InitHandler implements InitCommand {
           spinner.start('Configuring IAM permissions...');
           const iamResult = await this.stitchService.configureIAM({
             projectId: projectResult.data.projectId,
-            userEmail: authResult.data.account,
+            userEmail: authAccount,
           });
 
           if (iamResult.success) {
