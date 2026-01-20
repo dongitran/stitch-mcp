@@ -339,7 +339,7 @@ export class GcloudHandler implements GcloudService {
           success: false,
           error: {
             code: 'PROJECT_LIST_FAILED',
-            message: 'Failed to list projects',
+            message: `Failed to list projects: ${result.stderr}`,
             suggestion: 'Ensure you are authenticated and have access to projects',
             recoverable: true,
           },

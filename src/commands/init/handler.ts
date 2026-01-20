@@ -26,12 +26,22 @@ import { commandExists, execCommand } from '../../platform/shell.js';
 // type McpConfigService = McpConfigHandler;
 
 export class InitHandler implements InitCommand {
+  private readonly gcloudService: GcloudService;
+  private readonly mcpConfigService: McpConfigService;
+  private readonly projectService: ProjectService;
+  private readonly stitchService: StitchService;
+
   constructor(
-    private readonly gcloudService: GcloudService = new GcloudHandler(),
-    private readonly mcpConfigService: McpConfigService = new McpConfigHandler(),
-    private readonly projectService: ProjectService = new ProjectHandler(new GcloudHandler()), // ProjectHandler depends on GcloudHandler
-    private readonly stitchService: StitchService = new StitchHandler()
-  ) { }
+    gcloudService?: GcloudService,
+    mcpConfigService?: McpConfigService,
+    projectService?: ProjectService,
+    stitchService?: StitchService
+  ) {
+    this.gcloudService = gcloudService || new GcloudHandler();
+    this.mcpConfigService = mcpConfigService || new McpConfigHandler();
+    this.projectService = projectService || new ProjectHandler(this.gcloudService);
+    this.stitchService = stitchService || new StitchHandler();
+  }
 
   async execute(input: InitInput): Promise<InitResult> {
     try {
