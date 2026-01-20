@@ -63,7 +63,9 @@ describe('GcloudHandler', () => {
 
     beforeEach(() => {
       originalEnv = { ...process.env };
-      mockExecCommand.mockClear();
+      mockExecCommand.mockReset(); // Use mockReset to clear implementations
+      delete process.env.CLOUDSDK_CONFIG;
+      delete process.env.STITCH_USE_SYSTEM_GCLOUD;
     });
 
     afterEach(() => {
@@ -72,17 +74,31 @@ describe('GcloudHandler', () => {
 
     test('should use isolated environment by default', async () => {
       // Mock successful ensureInstalled to set defaults
+      // 1. commandExists (gcloud) - fail to find system
+      // 2. has local binary check (fs.existsSync) - mocked to true
+      // 3. getVersionFromPath (local)
+
       (fs.existsSync as any).mockReturnValue(true); // Pretend local binary exists
-      mockExecCommand.mockResolvedValue({ success: true, stdout: 'Google Cloud SDK 400.0.0', stderr: '', exitCode: 0 });
+
+      mockExecCommand
+        .mockResolvedValueOnce({ success: false, stdout: '', stderr: '', exitCode: 1 }) // commandExists (system)
+        .mockResolvedValueOnce({ success: true, stdout: 'Google Cloud SDK 400.0.0', stderr: '', exitCode: 0 }) // getVersionFromPath (local)
+        // authenticate calls:
+        // 4. auth login --no-launch-browser
+        .mockResolvedValueOnce({ success: true, stdout: 'https://accounts.google.com/...', stderr: '', exitCode: 0 })
+        // 5. auth login --quiet
+        .mockResolvedValueOnce({ success: true, stdout: 'Logged in', stderr: '', exitCode: 0 })
+        // 6. active account check
+        .mockResolvedValueOnce({ success: true, stdout: 'user@example.com', stderr: '', exitCode: 0 });
 
       await handler.ensureInstalled({ minVersion: '0.0.0' } as any);
 
       // Call a method that uses getEnvironment, e.g., authenticate
-      mockExecCommand.mockResolvedValue({ success: true, stdout: 'user@example.com', stderr: '', exitCode: 0 });
       await handler.authenticate({ skipIfActive: false });
 
       const calls = mockExecCommand.mock.calls;
       const authCall = calls.find((call: any[]) => call[0].includes('auth') && call[0].includes('login'));
+      if (!authCall) throw new Error('Auth call not found');
       const env = authCall[1].env;
 
       expect(env.CLOUDSDK_CONFIG).toBeDefined();
@@ -91,20 +107,40 @@ describe('GcloudHandler', () => {
 
     test('should use system environment when useSystemGcloud is true via ensureInstalled', async () => {
       (fs.existsSync as any).mockReturnValue(true);
-      mockExecCommand.mockResolvedValue({ success: true, stdout: 'Google Cloud SDK 400.0.0', stderr: '', exitCode: 0 });
+
+      // Sequence:
+      // 1. commandExists -> which gcloud
+      // 2. findGlobalGcloud -> which gcloud
+      // 3. getVersionFromPath -> gcloud version
+      // 4. authenticate -> gcloud auth login --no-launch-browser
+      // 5. authenticate -> gcloud auth login --quiet
+      // 6. authenticate -> gcloud auth list (getActiveAccount)
+
+      mockExecCommand
+        // commandExists
+        .mockResolvedValueOnce({ success: true, stdout: '/usr/bin/gcloud', stderr: '', exitCode: 0 })
+        // findGlobalGcloud
+        .mockResolvedValueOnce({ success: true, stdout: '/usr/bin/gcloud', stderr: '', exitCode: 0 })
+        // getVersionFromPath
+        .mockResolvedValueOnce({ success: true, stdout: 'Google Cloud SDK 400.0.0', stderr: '', exitCode: 0 })
+        // authenticate (auth login --no-launch-browser)
+        .mockResolvedValueOnce({ success: true, stdout: 'https://accounts.google.com/foo', stderr: '', exitCode: 0 })
+        // authenticate (auth login --quiet)
+        .mockResolvedValueOnce({ success: true, stdout: 'Logged in', stderr: '', exitCode: 0 })
+        // authenticate (getActiveAccount)
+        .mockResolvedValueOnce({ success: true, stdout: 'user@example.com', stderr: '', exitCode: 0 });
 
       // Set useSystemGcloud: true
       await handler.ensureInstalled({ minVersion: '0.0.0', useSystemGcloud: true } as any);
 
-      mockExecCommand.mockResolvedValue({ success: true, stdout: 'user@example.com', stderr: '', exitCode: 0 });
       await handler.authenticate({ skipIfActive: false });
 
       const calls = mockExecCommand.mock.calls;
+      // Find the auth call (it should be the 4th call, or verify by arguments)
       const authCall = calls.find((call: any[]) => call[0].includes('auth') && call[0].includes('login'));
       const env = authCall[1].env;
 
       // Should NOT have CLOUDSDK_CONFIG (or at least not our isolated one)
-      // Since we mocked process.env, CLOUDSDK_CONFIG shouldn't be there unless we put it.
       expect(env.CLOUDSDK_CONFIG).toBeUndefined();
     });
 
@@ -112,16 +148,25 @@ describe('GcloudHandler', () => {
       process.env.STITCH_USE_SYSTEM_GCLOUD = 'true';
 
       (fs.existsSync as any).mockReturnValue(true);
-      mockExecCommand.mockResolvedValue({ success: true, stdout: 'Google Cloud SDK 400.0.0', stderr: '', exitCode: 0 });
 
-      // Even with useSystemGcloud: false (default)
+      mockExecCommand
+        .mockResolvedValueOnce({ success: true, stdout: '/usr/bin/gcloud', stderr: '', exitCode: 0 }) // commandExists
+        .mockResolvedValueOnce({ success: true, stdout: '/usr/bin/gcloud', stderr: '', exitCode: 0 }) // findGlobalGcloud
+        .mockResolvedValueOnce({ success: true, stdout: 'Google Cloud SDK 400.0.0', stderr: '', exitCode: 0 }) // getVersionFromPath
+        .mockResolvedValueOnce({ success: true, stdout: 'https://accounts.google.com/foo', stderr: '', exitCode: 0 }) // auth login no-launch
+        .mockResolvedValueOnce({ success: true, stdout: 'Logged in', stderr: '', exitCode: 0 }) // auth login quiet
+        .mockResolvedValueOnce({ success: true, stdout: 'user@example.com', stderr: '', exitCode: 0 }); // active account
+
+      // Even with useSystemGcloud: false (default), env var should trigger system check
       await handler.ensureInstalled({ minVersion: '0.0.0' } as any);
 
-      mockExecCommand.mockResolvedValue({ success: true, stdout: 'user@example.com', stderr: '', exitCode: 0 });
       await handler.authenticate({ skipIfActive: false });
 
       const calls = mockExecCommand.mock.calls;
       const authCall = calls.find((call: any[]) => call[0].includes('auth') && call[0].includes('login'));
+
+      if (!authCall) throw new Error('Auth call not found');
+
       const env = authCall[1].env;
 
       expect(env.CLOUDSDK_CONFIG).toBeUndefined();

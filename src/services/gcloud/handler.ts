@@ -30,6 +30,27 @@ export class GcloudHandler implements GcloudService {
     this.useSystemGcloud = input.useSystemGcloud || false;
 
     try {
+      // Priority 1: Check for system gcloud first (unless forced local)
+      // This ensures we respect the user's existing environment if available
+      if (!input.forceLocal) {
+        const globalPath = await this.findGlobalGcloud();
+        if (globalPath) {
+          const version = await this.getVersionFromPath(globalPath);
+          if (version && this.isVersionValid(version, input.minVersion)) {
+            this.gcloudPath = globalPath;
+            this.useSystemGcloud = true; // Auto-enable system mode if found
+            return {
+              success: true,
+              data: {
+                version,
+                location: 'system',
+                path: globalPath,
+              },
+            };
+          }
+        }
+      }
+
       // Fast path: Check if local installation already exists (just a file check)
       const localSdkPath = getGcloudSdkPath();
       const localBinaryPath = joinPath(localSdkPath, 'bin', this.platform.gcloudBinaryName);
@@ -318,7 +339,7 @@ export class GcloudHandler implements GcloudService {
           success: false,
           error: {
             code: 'PROJECT_LIST_FAILED',
-            message: 'Failed to list projects',
+            message: `Failed to list projects: ${result.stderr}`,
             suggestion: 'Ensure you are authenticated and have access to projects',
             recoverable: true,
           },
@@ -656,9 +677,40 @@ export class GcloudHandler implements GcloudService {
   }
 
   async hasADC(): Promise<boolean> {
-    // Only check bundled stitch config path - we need ADC there for getAccessToken
-    const stitchConfigPath = getGcloudConfigPath();
-    const stitchAdcPath = joinPath(stitchConfigPath, 'application_default_credentials.json');
-    return fs.existsSync(stitchAdcPath);
+    // Check credentials by attempting to print access token (lightweight check)
+    // or checking the standard location via gcloud info if available.
+    // A reliable way is to check if we can get a token for ADC scope.
+    const gcloudCmd = this.getGcloudCommand();
+
+    // Command: gcloud auth application-default print-access-token
+    // This verifies that ADC is actually usable, not just that a file exists.
+    // Note: This might refresh tokens, so it requires network if expired.
+    // Alternatives: 'gcloud info' parsing.
+
+    // Let's stick to checking if the credential file exists, but using gcloud info to find WHERE it should be.
+    // If not using system, we know it's in our bundled config.
+    if (!this.useSystemGcloud && !process.env.STITCH_USE_SYSTEM_GCLOUD) {
+      const stitchConfigPath = getGcloudConfigPath();
+      const stitchAdcPath = joinPath(stitchConfigPath, 'application_default_credentials.json');
+      return fs.existsSync(stitchAdcPath);
+    }
+
+    // For system gcloud, use info command to find config directory
+    try {
+      const result = await execCommand(
+        [gcloudCmd, 'info', '--format=value(config.paths.global_config_dir)'],
+        { env: this.getEnvironment() }
+      );
+
+      if (result.success && result.stdout.trim()) {
+        const configDir = result.stdout.trim();
+        const adcPath = joinPath(configDir, 'application_default_credentials.json');
+        return fs.existsSync(adcPath);
+      }
+    } catch (e) {
+      // Fallback
+    }
+
+    return false;
   }
 }
