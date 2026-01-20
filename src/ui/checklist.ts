@@ -18,6 +18,7 @@ export interface ChecklistStep {
   id: string;
   title: string;
   command: string;
+  instruction?: string;
   verifyCommand?: string[];
   verifyFn?: () => Promise<VerifyResult>;
   env?: Record<string, string>;
@@ -150,6 +151,11 @@ export class Checklist {
 
     for (const step of steps) {
       displayStepHeader(step.title);
+
+      if (step.instruction) {
+        console.log(`  ${theme.yellow(step.instruction)}\n`);
+      }
+
       displayCommand(step.command);
 
       // Try to copy to clipboard

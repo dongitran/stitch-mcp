@@ -101,7 +101,8 @@ export class InitHandler implements InitCommand {
       if (isBundled) {
         authSteps.push({
           id: 'path-setup',
-          title: 'Configure gcloud PATH (this terminal session)',
+          title: 'Configure gcloud PATH',
+          instruction: 'Open a NEW terminal tab/window and run this command:',
           command: `export PATH="${gcloudBinDir}:$PATH"`,
           // No verification - verified indirectly when gcloud commands work
         });
