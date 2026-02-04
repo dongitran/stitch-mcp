@@ -19,58 +19,14 @@ This single command will:
 6. Enable Stitch API
 7. Generate MCP configuration for your client
 
-**Example session:**
-```
-Stitch MCP Setup
-
-Step 1: Select your MCP client
-✔ Which MCP client are you using? Antigravity
-
-Step 2: Setting up Google Cloud CLI
-✔ Google Cloud CLI ready (bundled): v552.0.0
-
-Step 3: Setup Authentication
-✔ Check your current setup status? Yes
-
-Authenticate with Google Cloud
-
-  CLOUDSDK_CONFIG="~/.stitch-mcp/config" gcloud auth login
-
-  (copied to clipboard)
-✔ Press Enter when complete Yes
-✔ Logged in as you@gmail.com
-
-Authorize Application Default Credentials
-
-  CLOUDSDK_CONFIG="~/.stitch-mcp/config" gcloud auth application-default login
-
-  (copied to clipboard)
-✔ Press Enter when complete Yes
-✔ ADC configured
-
-Step 4: Select a Google Cloud project
-✔ Select a project: My Project (my-project-id)
-
-Step 5: Configure IAM Permissions
-✔ Required IAM role is already configured.
-
-Step 6: Generating MCP Configuration
-✔ Configuration generated
-
-Setup Complete! ✔
-```
-
-**How it works:** Commands are displayed and automatically copied to your clipboard. Run the command in your terminal, complete the OAuth flow in your browser, then press Enter to continue.
-
 **Example output:**
 ```json
 {
   "mcpServers": {
     "stitch": {
-      "command": "npx",
-      "args": ["@_davideast/stitch-mcp", "proxy"],
-      "env": {
-        "STITCH_PROJECT_ID": "your-project-id"
+      "serverUrl": "https://stitch.googleapis.com/mcp",
+      "headers": {
+        "X-Goog-Api-Key": "YOUR-API-KEY"
       }
     }
   }
@@ -78,46 +34,6 @@ Setup Complete! ✔
 ```
 
 Copy this config into your MCP client settings and you're ready to use the Stitch MCP server.
-
-## Quick Start (Existing gcloud Users)
-
-If you already have `gcloud` configured, skip `init` and use the proxy directly.
-
-**Prerequisites:**
-```bash
-# 1. Application Default Credentials
-gcloud auth application-default login
-
-# 2. Set project (if not already set)
-gcloud config set project <PROJECT_ID>
-
-# 3. Enable Stitch API (requires beta component)
-gcloud components install beta
-gcloud beta services mcp enable stitch.googleapis.com --project=<PROJECT_ID>
-```
-
-**MCP Configuration:**
-```json
-{
-  "mcpServers": {
-    "stitch": {
-      "command": "npx",
-      "args": ["@_davideast/stitch-mcp", "proxy"],
-      "env": {
-        "STITCH_USE_SYSTEM_GCLOUD": "1"
-      }
-    }
-  }
-}
-```
-
-**Environment Variables:**
-| Variable | Description |
-|----------|-------------|
-| `STITCH_USE_SYSTEM_GCLOUD` | Use system gcloud config instead of isolated config |
-| `STITCH_PROJECT_ID` | Override project ID |
-| `GOOGLE_CLOUD_PROJECT` | Alternative project ID variable |
-| `STITCH_HOST` | Custom Stitch API endpoint |
 
 ## Verify Your Setup
 
@@ -217,7 +133,7 @@ Revokes both user authentication and Application Default Credentials. Useful for
 - Clearing authentication for testing
 - Resetting state when troubleshooting
 
-#### `view` - View Stitch Resources
+#### `view` - Interactive Resource Viewer
 
 ```bash
 npx @_davideast/stitch-mcp view [options]
@@ -230,7 +146,41 @@ npx @_davideast/stitch-mcp view [options]
 - `--project <id>` - Project ID
 - `--screen <id>` - Screen ID
 
-Interactively view Stitch resources such as projects and screens. Displays the resource data in a JSON tree format.
+Interactively browse Stitch resources in a navigable JSON tree. Supports drilling into nested objects and performing actions on selected nodes.
+
+**Keyboard Shortcuts:**
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` | Navigate up/down |
+| `Enter` | Expand/collapse or drill into nested object |
+| `Backspace` | Go back one level |
+| `c` | Copy selected value to clipboard |
+| `cc` | Extended copy (downloads content for URLs) |
+| `s` | **Preview HTML** - serves `htmlCode` in-memory and opens browser |
+| `o` | Open project in Stitch web app |
+| `q` | Quit viewer |
+
+**HTML Preview Feature:**
+
+When viewing a screen, select the `htmlCode` node and press `s` to:
+1. Download the HTML code from Stitch
+2. Start a local server (auto-closes after 5 minutes)
+3. Open your browser to preview the rendered HTML
+
+```
+Selected Path: screen.htmlCode | 'c' copy, 'cc' extended, 's' preview
+🌐 Preview at http://127.0.0.1:54268 (auto-closes in 5 min)
+```
+
+**Example Usage:**
+```bash
+# Browse all projects
+npx @_davideast/stitch-mcp view --projects
+
+# View a specific screen
+npx @_davideast/stitch-mcp view --project <project-id> --screen <screen-id>
+```
 
 #### `proxy` - MCP Proxy Server
 
@@ -248,6 +198,46 @@ This command is typically configured as the entry point in your MCP client setti
 - Request/response proxying
 - Error handling
 - Debug logging (when `--debug` is enabled to `/tmp/stitch-proxy-debug.log`)
+
+## OAuth setup with gcloud
+
+If you already have `gcloud` configured, skip `init` and use the proxy directly.
+
+**Prerequisites:**
+```bash
+# 1. Application Default Credentials
+gcloud auth application-default login
+
+# 2. Set project (if not already set)
+gcloud config set project <PROJECT_ID>
+
+# 3. Enable Stitch API (requires beta component)
+gcloud components install beta
+gcloud beta services mcp enable stitch.googleapis.com --project=<PROJECT_ID>
+```
+
+**MCP Configuration:**
+```json
+{
+  "mcpServers": {
+    "stitch": {
+      "command": "npx",
+      "args": ["@_davideast/stitch-mcp", "proxy"],
+      "env": {
+        "STITCH_USE_SYSTEM_GCLOUD": "1"
+      }
+    }
+  }
+}
+```
+
+**Environment Variables:**
+| Variable | Description |
+|----------|-------------|
+| `STITCH_USE_SYSTEM_GCLOUD` | Use system gcloud config instead of isolated config |
+| `STITCH_PROJECT_ID` | Override project ID |
+| `GOOGLE_CLOUD_PROJECT` | Alternative project ID variable |
+| `STITCH_HOST` | Custom Stitch API endpoint |
 
 ### How It Works
 
