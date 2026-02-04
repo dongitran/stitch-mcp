@@ -14,6 +14,14 @@ const mockStdioTransport: any = {
 // Mock global fetch
 global.fetch = mock(async () => new Response('{}', { status: 200 })) as any;
 
+// Mock dotenv to prevent loading .env file
+mock.module('dotenv', () => ({
+  default: {
+    config: mock(() => ({})),
+  },
+  config: mock(() => ({})),
+}));
+
 describe('ProxyHandler', () => {
   let proxyHandler: ProxyHandler;
   let mockGcloudHandler: any;
