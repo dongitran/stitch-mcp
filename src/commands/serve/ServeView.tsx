@@ -17,13 +17,27 @@ interface ServeViewProps {
 export function ServeView({ projectId, projectTitle, screens }: ServeViewProps) {
   const { exit } = useApp();
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [windowStart, setWindowStart] = useState(0);
   const [status, setStatus] = useState('Starting server...');
   const [serverPort, setServerPort] = useState<number | null>(null);
 
-  screens = [
+  const VIEW_HEIGHT = 10;
+
+  // Note: we're modifying the prop directly here which isn't ideal but preserving existing pattern for now
+  // to avoid larger refactor. The "Index" route is added at position 0.
+  const displayScreens = [
     { screenId: '', title: 'index', codeUrl: '' },
     ...screens,
-  ]
+  ];
+
+  // Sync window with selection
+  useEffect(() => {
+    if (selectedIndex < windowStart) {
+      setWindowStart(selectedIndex);
+    } else if (selectedIndex >= windowStart + VIEW_HEIGHT) {
+      setWindowStart(selectedIndex - VIEW_HEIGHT + 1);
+    }
+  }, [selectedIndex, windowStart, VIEW_HEIGHT]);
 
   // Auto-start server on mount
   useEffect(() => {
@@ -126,21 +140,32 @@ export function ServeView({ projectId, projectTitle, screens }: ServeViewProps) 
     }
 
     if (key.upArrow || input === 'k') {
-      setSelectedIndex(i => Math.max(0, i - 1));
+      setSelectedIndex(prev => Math.max(0, prev - 1));
     }
 
     if (key.downArrow || input === 'j') {
-      setSelectedIndex(i => Math.min(screens.length - 1, i + 1));
+      setSelectedIndex(prev => Math.min(displayScreens.length - 1, prev + 1));
     }
 
     // Enter to open in browser
     if (key.return) {
-      const screen = screens[selectedIndex];
-      if (screen && serverPort) {
+      const screen = displayScreens[selectedIndex];
+      if (!screen) return;
+
+      // Index screen has empty ID, others have IDs
+      if (serverPort) {
         import('child_process').then(({ spawn }) => {
-          const shortId = screen.screenId.slice(0, 8);
-          spawn('open', [`http://localhost:${serverPort}/${shortId}`]);
-          setStatus(`Opened /${shortId}`);
+          let url = `http://localhost:${serverPort}/`;
+          let statusMsg = 'Opened index';
+
+          if (screen.screenId) {
+            const shortId = screen.screenId.slice(0, 8);
+            url += shortId;
+            statusMsg = `Opened /${shortId}`;
+          }
+
+          spawn('open', [url]);
+          setStatus(statusMsg);
         });
       }
     }
@@ -157,6 +182,7 @@ export function ServeView({ projectId, projectTitle, screens }: ServeViewProps) 
   });
 
   const serverUrl = serverPort ? `http://localhost:${serverPort}` : 'starting...';
+  const visibleScreens = displayScreens.slice(windowStart, windowStart + VIEW_HEIGHT);
 
   return (
     <Box flexDirection="column" padding={1}>
@@ -171,22 +197,33 @@ export function ServeView({ projectId, projectTitle, screens }: ServeViewProps) 
       <Text dimColor> all routes</Text>
       <Text> </Text>
 
-      {/* Routes */}
-      {screens.map((screen, index) => {
-        const isSelected = index === selectedIndex;
-        const num = String(index + 1).padStart(2, ' ');
-        const shortId = screen.screenId.slice(0, 8);
-        const route = `/${shortId}`.padEnd(25);
+      {/* Routes List */}
+      <Box flexDirection="column">
+        {windowStart > 0 && <Text dimColor>... {windowStart} more above ...</Text>}
 
-        return (
-          <Box key={screen.screenId}>
-            <Text dimColor>{num} </Text>
-            <Text color={isSelected ? 'cyan' : undefined}>{isSelected ? '▸' : ' '} </Text>
-            <Text color={isSelected ? 'cyan' : undefined} bold={isSelected}>{route}</Text>
-            <Text dimColor>→ {screen.title.slice(0, 30)}</Text>
-          </Box>
-        );
-      })}
+        {visibleScreens.map((screen, index) => {
+          // Adjust index for absolute position
+          const absoluteIndex = windowStart + index;
+          const isSelected = absoluteIndex === selectedIndex;
+
+          const num = String(absoluteIndex + 1).padStart(2, ' ');
+          const shortId = screen.screenId ? screen.screenId.slice(0, 8) : '';
+          const route = `/${shortId}`.padEnd(25);
+
+          return (
+            <Box key={screen.screenId || 'index'}>
+              <Text dimColor>{num} </Text>
+              <Text color={isSelected ? 'cyan' : undefined}>{isSelected ? '▸' : ' '} </Text>
+              <Text color={isSelected ? 'cyan' : undefined} bold={isSelected}>{route}</Text>
+              <Text dimColor>→ {screen.title}</Text>
+            </Box>
+          );
+        })}
+
+        {windowStart + VIEW_HEIGHT < displayScreens.length && (
+          <Text dimColor>... {displayScreens.length - (windowStart + VIEW_HEIGHT)} more below ...</Text>
+        )}
+      </Box>
 
       <Text> </Text>
       <Text dimColor>────────────────────────────────────────────────────────────</Text>

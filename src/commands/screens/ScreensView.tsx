@@ -22,11 +22,22 @@ interface ScreensViewProps {
 export function ScreensView({ projectId, projectTitle, screens, client }: ScreensViewProps) {
   const { exit } = useApp();
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [windowStart, setWindowStart] = useState(0);
   const [status, setStatus] = useState('');
   const [serverPort, setServerPort] = useState<number | null>(null);
 
+  const VIEW_HEIGHT = 10;
   const codeCount = screens.filter(s => s.hasCode).length;
   const screensWithCode = screens.filter(s => s.hasCode);
+
+  // Helper to sync window with selection
+  React.useEffect(() => {
+    if (selectedIndex < windowStart) {
+      setWindowStart(selectedIndex);
+    } else if (selectedIndex >= windowStart + VIEW_HEIGHT) {
+      setWindowStart(selectedIndex - VIEW_HEIGHT + 1);
+    }
+  }, [selectedIndex, windowStart, VIEW_HEIGHT]);
 
   async function startServer() {
     if (serverPort) return serverPort; // Already running
@@ -110,12 +121,12 @@ export function ScreensView({ projectId, projectTitle, screens, client }: Screen
     }
 
     if (key.upArrow || input === 'k') {
-      setSelectedIndex(i => Math.max(0, i - 1));
+      setSelectedIndex(prev => Math.max(0, prev - 1));
       setStatus('');
     }
 
     if (key.downArrow || input === 'j') {
-      setSelectedIndex(i => Math.min(screens.length - 1, i + 1));
+      setSelectedIndex(prev => Math.min(screens.length - 1, prev + 1));
       setStatus('');
     }
 
@@ -162,6 +173,8 @@ export function ScreensView({ projectId, projectTitle, screens, client }: Screen
     }
   });
 
+  const visibleScreens = screens.slice(windowStart, windowStart + VIEW_HEIGHT);
+
   return (
     <Box flexDirection="column" padding={1}>
       {/* Header */}
@@ -172,9 +185,13 @@ export function ScreensView({ projectId, projectTitle, screens, client }: Screen
 
       {/* Screen List */}
       <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={1}>
-        {screens.map((screen, index) => {
-          const isSelected = index === selectedIndex;
-          const num = String(index + 1).padStart(2, ' ');
+        {windowStart > 0 && <Text dimColor>... {windowStart} more above ...</Text>}
+
+        {visibleScreens.map((screen, index) => {
+          // Adjust index for absolute position
+          const absoluteIndex = windowStart + index;
+          const isSelected = absoluteIndex === selectedIndex;
+          const num = String(absoluteIndex + 1).padStart(2, ' ');
           const selector = isSelected ? '▸' : ' ';
 
           return (
@@ -206,6 +223,10 @@ export function ScreensView({ projectId, projectTitle, screens, client }: Screen
             </Box>
           );
         })}
+
+        {windowStart + VIEW_HEIGHT < screens.length && (
+          <Text dimColor>... {screens.length - (windowStart + VIEW_HEIGHT)} more below ...</Text>
+        )}
       </Box>
 
       {/* Footer */}
