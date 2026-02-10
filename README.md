@@ -1,154 +1,164 @@
-# Stitch MCP Helper CLI
+# stitch-mcp
 
-> A guided checklist and proxy server for the Stitch MCP
+A CLI for moving AI-generated UI designs into your development workflow — preview them locally, build sites from them, and feed them to coding agents.
 
-![Example usage](/assets/splash.png)
+## Why
 
-## Quick Start
+AI-generated designs in Google's Stitch platform live as HTML/CSS behind an API. Getting them into a local development environment — for previewing, building, or handing off to coding agents — requires fetching, serving, and structuring them. stitch-mcp handles this through a set of CLI commands that connect to Stitch.
+
+## Quick start
 
 ```bash
+# Set up authentication and MCP client config
 npx @_davideast/stitch-mcp init
+
+# Serve all project screens on a local dev server
+npx @_davideast/stitch-mcp serve -p <project-id>
+
+# Build an Astro site by mapping screens to routes
+npx @_davideast/stitch-mcp site -p <project-id>
 ```
 
-This single command will:
-1. Install Google Cloud CLI (if needed)
-2. Guide you through authentication with gcloud commands
-3. Set up application credentials
-4. Select a GCP project
-5. Configure IAM permissions
-6. Enable Stitch API
-7. Generate MCP configuration for your client
+## Features
 
-**Example output:**
+- **Local dev server** — `serve` runs a Vite server with all screens from a project
+- **Site generation** — `site` builds an Astro project from screen-to-route mappings
+- **MCP proxy** — `proxy` bridges your IDE's coding agent to Stitch tools with automatic token refresh
+- **Virtual tools** — `build_site`, `get_screen_code`, `get_screen_image` give agents direct access to design HTML and screenshots
+- **Interactive browser** — `view` navigates projects and screens in the terminal
+- **Guided setup** — `init` handles gcloud, auth, and MCP client configuration
+
+## MCP integration
+
+Add this to your MCP client config to give coding agents access to Stitch tools and virtual tools:
+
 ```json
 {
   "mcpServers": {
     "stitch": {
-      "serverUrl": "https://stitch.googleapis.com/mcp",
-      "headers": {
-        "X-Goog-Api-Key": "YOUR-API-KEY"
-      }
+      "command": "npx",
+      "args": ["@_davideast/stitch-mcp", "proxy"]
     }
   }
 }
 ```
 
-Copy this config into your MCP client settings and you're ready to use the Stitch MCP server.
+Supported clients: VS Code, Cursor, Claude Code, Gemini CLI, Codex, OpenCode.
 
-## Verify Your Setup
+---
 
-```bash
-npx @_davideast/stitch-mcp doctor
-```
+## Installation
 
-Runs health checks on:
-- ✔ Google Cloud CLI installation
-- ✔ User authentication
-- ✔ Application credentials
-- ✔ Project configuration
-- ✔ Stitch API connectivity
-
-## Logout
+Run directly with `npx` (no install needed):
 
 ```bash
-npx @_davideast/stitch-mcp logout
-
-# Skip confirmation
-npx @_davideast/stitch-mcp logout --force
-
-# Clear all config
-npx @_davideast/stitch-mcp logout --clear-config
+npx @_davideast/stitch-mcp <command>
 ```
 
-## Deep Dive
-
-### Installation
-
-Can be configured with `npx` or installed globally.
-
-```bash
-npx @_davideast/stitch-mcp init
-```
-
-Or install globally if you prefer:
+Or install globally:
 
 ```bash
 npm install -g @_davideast/stitch-mcp
-stitch-mcp init
+stitch-mcp <command>
 ```
 
-### Commands Reference
+## Commands
 
-#### `init` - Interactive Setup
+### `init` — Set up authentication and MCP config
 
 ```bash
 npx @_davideast/stitch-mcp init [options]
 ```
 
-**Options:**
-- `--local` - Install gcloud locally to project instead of user home
-- `-y, --yes` - Auto-approve verification prompts (skips "Check your current setup status?")
-- `-c, --client <client>` - Specify MCP client (antigravity, vscode, cursor, claude-code, gemini-cli, opencode)
-- `-t, --transport <type>` - Transport type (http or stdio)
+| Option | Description |
+|--------|-------------|
+| `--local` | Install gcloud locally to project directory instead of user home |
+| `-y, --yes` | Auto-approve verification prompts |
+| `--defaults` | Use default values for prompts |
+| `-c, --client <client>` | MCP client to configure (antigravity, vscode, cursor, claude-code, gemini-cli, codex, opencode) |
+| `-t, --transport <type>` | Transport type (`http` or `stdio`) |
 
-**What happens:**
-1. **MCP Client Selection** - Choose your IDE/CLI
-2. **gcloud Setup** - Install or detect Google Cloud CLI
-3. **User Authentication** - OAuth login flow
-4. **Application Credentials** - API-level authentication
-5. **Project Selection** - Interactive picker with search
-6. **IAM Configuration** - Set up required permissions
-7. **API Enablement** - Enable Stitch API
-8. **Connection Test** - Verify API access
-9. **Config Generation** - Output ready-to-use MCP config
+Walks through a setup wizard: MCP client selection, gcloud installation, OAuth login, application credentials, project selection, IAM permissions, Stitch API enablement, connection test, and config generation.
 
-#### `doctor` - Health Checks
+### `doctor` — Verify configuration health
 
 ```bash
 npx @_davideast/stitch-mcp doctor [options]
 ```
 
-**Options:**
-- `--verbose` - Show detailed error information
+| Option | Description |
+|--------|-------------|
+| `--verbose` | Show detailed error information |
 
-Diagnoses common setup issues and verifies:
-- Google Cloud CLI is installed and accessible
-- User is authenticated
-- Application Default Credentials exist
-- Active GCP project is configured
-- Stitch API is reachable
+Checks that gcloud is installed, user is authenticated, Application Default Credentials exist, a GCP project is configured, and the Stitch API is reachable.
 
-#### `logout` - Revoke Credentials
+### `serve` — Local dev server for project screens
 
 ```bash
-npx @_davideast/stitch-mcp logout [options]
+npx @_davideast/stitch-mcp serve -p <project-id>
 ```
 
-**Options:**
-- `--force` - Skip confirmation prompts
-- `--clear-config` - Delete entire gcloud config directory
+| Option | Description |
+|--------|-------------|
+| `-p, --project <id>` | **Required.** Project ID |
 
-Revokes both user authentication and Application Default Credentials. Useful for:
-- Switching Google accounts
-- Clearing authentication for testing
-- Resetting state when troubleshooting
+Fetches all screens from a Stitch project and serves them on a local Vite dev server. Each screen gets its own route for previewing rendered HTML in the browser.
 
-#### `view` - Interactive Resource Viewer
+### `screens` — Explore screens in a project
+
+```bash
+npx @_davideast/stitch-mcp screens -p <project-id>
+```
+
+| Option | Description |
+|--------|-------------|
+| `-p, --project <id>` | **Required.** Project ID |
+
+Opens an interactive terminal UI for browsing all screens in a project.
+
+### `site` — Build an Astro site from screens
+
+```bash
+npx @_davideast/stitch-mcp site -p <project-id> [options]
+```
+
+| Option | Description |
+|--------|-------------|
+| `-p, --project <id>` | **Required.** Project ID |
+| `-o, --output <dir>` | Output directory (default: `.`) |
+
+Launches an interactive screen-to-route mapper, then generates an Astro project with the following structure:
+
+```
+├── package.json
+├── astro.config.mjs
+└── src/
+    ├── layouts/Layout.astro
+    └── pages/
+        ├── index.astro        # screen mapped to "/"
+        └── about.astro        # screen mapped to "/about"
+```
+
+External assets (fonts, images) are downloaded to `public/assets/` with URLs rewritten to local paths.
+
+### `view` — Interactive resource browser
 
 ```bash
 npx @_davideast/stitch-mcp view [options]
 ```
 
-**Options:**
-- `--projects` - List all projects
-- `--name <name>` - Resource name to view
-- `--sourceScreen <name>` - Source screen resource name
-- `--project <id>` - Project ID
-- `--screen <id>` - Screen ID
+| Option | Description |
+|--------|-------------|
+| `--projects` | List all projects |
+| `--name <name>` | Resource name to view |
+| `--sourceScreen <name>` | Source screen resource name |
+| `--project <id>` | Project ID |
+| `--screen <id>` | Screen ID |
+| `--serve` | Serve the screen via local server |
 
-Interactively browse Stitch resources in a navigable JSON tree. Supports drilling into nested objects and performing actions on selected nodes.
+Browse Stitch resources in a navigable JSON tree. Supports drilling into nested objects and performing actions on selected nodes.
 
-**Keyboard Shortcuts:**
+**Keyboard shortcuts:**
 
 | Key | Action |
 |-----|--------|
@@ -157,23 +167,10 @@ Interactively browse Stitch resources in a navigable JSON tree. Supports drillin
 | `Backspace` | Go back one level |
 | `c` | Copy selected value to clipboard |
 | `cc` | Extended copy (downloads content for URLs) |
-| `s` | **Preview HTML** - serves `htmlCode` in-memory and opens browser |
+| `s` | Preview HTML — serves `htmlCode` in-memory and opens browser |
 | `o` | Open project in Stitch web app |
 | `q` | Quit viewer |
 
-**HTML Preview Feature:**
-
-When viewing a screen, select the `htmlCode` node and press `s` to:
-1. Download the HTML code from Stitch
-2. Start a local server (auto-closes after 5 minutes)
-3. Open your browser to preview the rendered HTML
-
-```
-Selected Path: screen.htmlCode | 'c' copy, 'cc' extended, 's' preview
-🌐 Preview at http://127.0.0.1:54268 (auto-closes in 5 min)
-```
-
-**Example Usage:**
 ```bash
 # Browse all projects
 npx @_davideast/stitch-mcp view --projects
@@ -182,41 +179,146 @@ npx @_davideast/stitch-mcp view --projects
 npx @_davideast/stitch-mcp view --project <project-id> --screen <screen-id>
 ```
 
-#### `proxy` - MCP Proxy Server
+### `tool` — Invoke MCP tools directly
+
+```bash
+npx @_davideast/stitch-mcp tool [toolName] [options]
+```
+
+| Option | Description |
+|--------|-------------|
+| `-s, --schema` | Show tool arguments and schema |
+| `-d, --data <json>` | JSON data (like `curl -d`) |
+| `-f, --data-file <path>` | Read JSON from file (like `curl -d @file`) |
+| `-o, --output <format>` | Output format: `json`, `pretty`, `raw` (default: `pretty`) |
+
+Calls any MCP tool (including virtual tools) from the command line. Run without a tool name to list available tools.
+
+**Virtual tools:**
+
+These tools are not part of the upstream Stitch MCP server. They are added by the proxy and combine multiple API calls into higher-level operations for coding agents.
+
+- **`build_site`** — Builds a site from a project by mapping screens to routes. Returns the design HTML for each page.
+- **`get_screen_code`** — Retrieves a screen and downloads its HTML code content.
+- **`get_screen_image`** — Retrieves a screen and downloads its screenshot image as base64.
+
+`build_site` input schema:
+
+```json
+{
+  "projectId": "string (required)",
+  "routes": [
+    {
+      "screenId": "string (required)",
+      "route": "string (required, e.g. \"/\" or \"/about\")"
+    }
+  ]
+}
+```
+
+Example:
+
+```bash
+npx @_davideast/stitch-mcp tool build_site -d '{
+  "projectId": "123456",
+  "routes": [
+    { "screenId": "abc", "route": "/" },
+    { "screenId": "def", "route": "/about" }
+  ]
+}'
+```
+
+### `proxy` — MCP proxy server
 
 ```bash
 npx @_davideast/stitch-mcp proxy [options]
 ```
 
-**Options:**
-- `--transport <type>` - Transport type: 'stdio' or 'sse' (default: 'stdio')
-- `--port <number>` - Port number (required for sse)
-- `--debug` - Enable debug logging
+| Option | Description |
+|--------|-------------|
+| `--transport <type>` | Transport type: `stdio` or `sse` (default: `stdio`) |
+| `--port <number>` | Port number (required for `sse`) |
+| `--debug` | Enable debug logging to `/tmp/stitch-proxy-debug.log` |
 
-This command is typically configured as the entry point in your MCP client settings. It handles:
-- Automatic token refresh
-- Request/response proxying
-- Error handling
-- Debug logging (when `--debug` is enabled to `/tmp/stitch-proxy-debug.log`)
+Proxies requests between your MCP client and the Stitch MCP server. Handles automatic token refresh and exposes virtual tools alongside the upstream tools.
 
-## OAuth setup with gcloud
+**STDIO config (default):**
 
-If you already have `gcloud` configured, skip `init` and use the proxy directly.
+```json
+{
+  "mcpServers": {
+    "stitch": {
+      "command": "npx",
+      "args": ["@_davideast/stitch-mcp", "proxy"]
+    }
+  }
+}
+```
 
-**Prerequisites:**
+**SSE config:**
+
+```json
+{
+  "mcpServers": {
+    "stitch": {
+      "command": "npx",
+      "args": ["@_davideast/stitch-mcp", "proxy", "--transport", "sse", "--port", "3100"]
+    }
+  }
+}
+```
+
+### `logout` — Revoke credentials
+
 ```bash
-# 1. Application Default Credentials
+npx @_davideast/stitch-mcp logout [options]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--force` | Skip confirmation prompts |
+| `--clear-config` | Delete entire gcloud config directory |
+
+Revokes both user authentication and Application Default Credentials.
+
+### `snapshot` — Create UI snapshots
+
+```bash
+npx @_davideast/stitch-mcp snapshot [options]
+```
+
+| Option | Description |
+|--------|-------------|
+| `-c, --command <command>` | The command to snapshot (e.g. `init`) |
+| `-d, --data <file>` | Path to JSON data file |
+| `-s, --schema` | Print the data schema for the command |
+
+Creates UI snapshots of CLI commands given a data state. Useful for testing and documentation.
+
+## Authentication
+
+**Automatic (recommended):** Run `init` and follow the wizard. It handles gcloud installation, OAuth, credentials, and project setup.
+
+```bash
+npx @_davideast/stitch-mcp init
+```
+
+**API key:** Set the `STITCH_API_KEY` environment variable to skip OAuth entirely.
+
+```bash
+export STITCH_API_KEY="your-api-key"
+```
+
+**Manual (existing gcloud):** If you already have gcloud configured:
+
+```bash
 gcloud auth application-default login
-
-# 2. Set project (if not already set)
 gcloud config set project <PROJECT_ID>
-
-# 3. Enable Stitch API (requires beta component)
-gcloud components install beta
 gcloud beta services mcp enable stitch.googleapis.com --project=<PROJECT_ID>
 ```
 
-**MCP Configuration:**
+Then use the proxy with `STITCH_USE_SYSTEM_GCLOUD=1`:
+
 ```json
 {
   "mcpServers": {
@@ -231,97 +333,20 @@ gcloud beta services mcp enable stitch.googleapis.com --project=<PROJECT_ID>
 }
 ```
 
-**Environment Variables:**
+## Environment variables
+
 | Variable | Description |
 |----------|-------------|
+| `STITCH_API_KEY` | API key for direct authentication (skips OAuth) |
+| `STITCH_ACCESS_TOKEN` | Pre-existing access token |
 | `STITCH_USE_SYSTEM_GCLOUD` | Use system gcloud config instead of isolated config |
 | `STITCH_PROJECT_ID` | Override project ID |
 | `GOOGLE_CLOUD_PROJECT` | Alternative project ID variable |
 | `STITCH_HOST` | Custom Stitch API endpoint |
 
-### How It Works
+## Troubleshooting
 
-#### Automatic gcloud Management
-
-This library manages Google Cloud CLI:
-
-- **Prefers global installation:** Uses existing `gcloud` if available
-- **Auto-installs locally:** Downloads to `~/.stitch-mcp/google-cloud-sdk` if needed
-- **Isolated configuration:** Separate config directory prevents config conflicts with other gcloud configurations
-
-#### Two-Step Authentication
-
-Two authentication flows are required for Stitch MCP server access:
-
-1. **User Auth** (`gcloud auth login`)
-   - Identifies you to Google Cloud
-   - Opens browser for OAuth flow
-
-2. **Application Default Credentials** (`gcloud auth application-default login`)
-   - Allows MCP server to make API calls on your behalf
-   - Separate OAuth flow with API-level permissions
-
-The CLI presents these as a guided checklist. You run the commands yourself, then the CLI verifies completion:
-
-```
-Authenticate with Google Cloud
-
-  CLOUDSDK_CONFIG="~/.stitch-mcp/config" gcloud auth login
-
-  (copied to clipboard)
-✔ Press Enter when complete Yes
-✔ Logged in as you@gmail.com
-```
-
-#### WSL / SSH / Docker Environments
-
-The CLI automatically detects WSL, SSH sessions, Docker containers, and Cloud Shell. In these environments, browser-based auth may not work automatically. The CLI shows guidance:
-
-```
-⚠ WSL detected - browser redirect to localhost may not work
-  If browser auth fails, copy the URL from terminal and open manually.
-```
-
-Simply copy the OAuth URL from your terminal and paste it into your browser to complete authentication.
-
-#### Transport Options
-
-**Direct Connection (HTTP)** - Default for most clients:
-```json
-{
-  "mcpServers": {
-    "stitch": {
-      "type": "http",
-      "url": "https://stitch.googleapis.com/mcp",
-      "headers": {
-        "Authorization": "Bearer <token>",
-        "X-Goog-User-Project": "<project-id>"
-      }
-    }
-  }
-}
-```
-
-**Proxy Mode (STDIO)** - Recommended for development:
-```json
-{
-  "mcpServers": {
-    "stitch": {
-      "command": "npx",
-      "args": ["@_davideast/stitch-mcp", "proxy"],
-      "env": {
-        "STITCH_PROJECT_ID": "<project-id>"
-      }
-    }
-  }
-}
-```
-
-Proxy mode handles token refresh automatically and provides debug logging.
-
-### Troubleshooting
-
-#### "Permission Denied" errors
+### "Permission Denied" errors
 
 Ensure:
 - You have Owner or Editor role on the GCP project
@@ -333,15 +358,15 @@ Run `doctor` to diagnose:
 npx @_davideast/stitch-mcp doctor --verbose
 ```
 
-#### Authentication URL not appearing
+### Authentication URL not appearing
 
-The tool now **always prints authentication URLs to the terminal** with a 5-second timeout to prevent hanging. If the URL doesn't appear:
+The tool prints authentication URLs to the terminal with a 5-second timeout. If the URL doesn't appear:
 
 1. Check your terminal output carefully
 2. The URL starts with `https://accounts.google.com`
-3. If still not visible, check `/tmp/stitch-proxy-debug.log` (if using proxy with `--debug`)
+3. If using proxy with `--debug`, check `/tmp/stitch-proxy-debug.log`
 
-#### Already authenticated but showing logged in
+### Already authenticated but showing logged in
 
 The bundled gcloud SDK maintains separate authentication from your global gcloud installation. To fully clear authentication:
 
@@ -349,7 +374,7 @@ The bundled gcloud SDK maintains separate authentication from your global gcloud
 npx @_davideast/stitch-mcp logout --force --clear-config
 ```
 
-#### API connection fails after setup
+### API connection fails after setup
 
 1. Run the doctor command:
    ```bash
@@ -369,7 +394,11 @@ npx @_davideast/stitch-mcp logout --force --clear-config
    npx @_davideast/stitch-mcp init
    ```
 
-### Development
+### WSL / SSH / Docker environments
+
+The CLI detects WSL, SSH sessions, Docker containers, and Cloud Shell. In these environments, browser-based auth may not work automatically. Copy the OAuth URL from your terminal and open it in a browser manually.
+
+## Development
 
 ```bash
 # Install dependencies
